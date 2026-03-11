@@ -1,0 +1,22 @@
+{
+  "ckpt": "artifacts\\runs\\student_factor_184x92_kd\\best.pt",
+  "baseline_json": "artifacts\\baseline\\baseline.json",
+  "model": "baseline_factor",
+  "window_size": 100,
+  "channels": 11,
+  "in_dim": 1000,
+  "hidden_sizes": [
+    184,
+    92
+  ],
+  "baseline_window_size": 100,
+  "fp32_weight_floats": 201297,
+  "fp32_weight_bytes": 805188,
+  "fp32_weight_kb": 786.31640625,
+  "macs_per_infer": 201020,
+  "ram_state_bytes_est": 4800,
+  "stack_bytes_est": 1148,
+  "h_source_bytes": 1715,
+  "c_source_bytes": 3126008,
+  "note": "FP32 reference inference for STM32CubeIDE. Make sure raw feature units/order match training CSV."
+}
