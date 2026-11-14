@@ -1,8 +1,8 @@
 third\sdmanager.o: ..\User\SdManager.c
 third\sdmanager.o: ..\User\SdManager.h
 third\sdmanager.o: ..\User\Config.h
-third\sdmanager.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdio.h
-third\sdmanager.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdint.h
+third\sdmanager.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
+third\sdmanager.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
 third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
 third\sdmanager.o: ../Core/Inc/stm32f4xx_hal_conf.h
 third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h
@@ -17,7 +17,7 @@ third\sdmanager.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 third\sdmanager.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h
 third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
 third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-third\sdmanager.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stddef.h
+third\sdmanager.o: D:\keil\ARM\ARMCC\Bin\..\include\stddef.h
 third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
 third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
 third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
@@ -40,4 +40,4 @@ third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
 third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd.h
 third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h
 third\sdmanager.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h
-third\sdmanager.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\string.h
+third\sdmanager.o: D:\keil\ARM\ARMCC\Bin\..\include\string.h

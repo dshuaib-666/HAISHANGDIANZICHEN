@@ -1,0 +1,20 @@
+; dual_scale v1.0 —— 算法对齐工作区放 CCM RAM（0x10000000）
+; 生成背景：algo_align.c 静态工作区 44KB（.ccmram 段），主 RAM 留给
+; AppScale(57KB) + HAL + 栈。CCM 仅 CPU 可访问（无 DMA）——工作区无 DMA 需求。
+; 用法：µVision → Options for Target → Linker → 取消勾选
+;       "Use Memory Layout from Target Dialog"，Scatter File 选本文件。
+
+LR_IROM1 0x08000000 0x00100000  {    ; 1MB Flash
+  ER_IROM1 0x08000000 0x00100000  {
+    *.o (RESET, +First)
+    *(InRoot$$Sections)
+    .ANY (+RO)
+    .ANY (+XO)
+  }
+  RW_IRAM1 0x20000000 0x00020000  {  ; 主 RAM 128KB
+    .ANY (+RW +ZI)
+  }
+  RW_CCM 0x10000000 UNINIT 0x00010000  {  ; CCM 64KB（不初始化——用前必满写）
+    *(.ccmram)
+  }
+}

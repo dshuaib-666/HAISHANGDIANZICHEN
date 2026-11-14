@@ -3,7 +3,7 @@ third\usb_device.o: ../USB_DEVICE/App/usb_device.h
 third\usb_device.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 third\usb_device.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h
 third\usb_device.o: ../Drivers/CMSIS/Include/core_cm4.h
-third\usb_device.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdint.h
+third\usb_device.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
 third\usb_device.o: ../Drivers/CMSIS/Include/cmsis_version.h
 third\usb_device.o: ../Drivers/CMSIS/Include/cmsis_compiler.h
 third\usb_device.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
@@ -15,7 +15,7 @@ third\usb_device.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc.h
 third\usb_device.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h
 third\usb_device.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 third\usb_device.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-third\usb_device.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stddef.h
+third\usb_device.o: D:\keil\ARM\ARMCC\Bin\..\include\stddef.h
 third\usb_device.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
 third\usb_device.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
 third\usb_device.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
@@ -40,9 +40,9 @@ third\usb_device.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h
 third\usb_device.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h
 third\usb_device.o: ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h
 third\usb_device.o: ../USB_DEVICE/Target/usbd_conf.h
-third\usb_device.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdio.h
-third\usb_device.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdlib.h
-third\usb_device.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\string.h
+third\usb_device.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
+third\usb_device.o: D:\keil\ARM\ARMCC\Bin\..\include\stdlib.h
+third\usb_device.o: D:\keil\ARM\ARMCC\Bin\..\include\string.h
 third\usb_device.o: ../Core/Inc/main.h
 third\usb_device.o: ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_core.h
 third\usb_device.o: ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h

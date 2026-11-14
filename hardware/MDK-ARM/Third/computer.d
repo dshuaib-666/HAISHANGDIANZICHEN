@@ -1,8 +1,8 @@
 third\computer.o: ..\User\Computer.c
 third\computer.o: ..\User\Computer.h
 third\computer.o: ..\User\Config.h
-third\computer.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdio.h
-third\computer.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdint.h
+third\computer.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
+third\computer.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
 third\computer.o: ..\User\ProcessData.h
 third\computer.o: ../Core/Inc/main.h
 third\computer.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
@@ -19,7 +19,7 @@ third\computer.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 third\computer.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h
 third\computer.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
 third\computer.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-third\computer.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stddef.h
+third\computer.o: D:\keil\ARM\ARMCC\Bin\..\include\stddef.h
 third\computer.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
 third\computer.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
 third\computer.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
@@ -42,7 +42,7 @@ third\computer.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
 third\computer.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd.h
 third\computer.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_ll_usb.h
 third\computer.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h
-third\computer.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\string.h
+third\computer.o: D:\keil\ARM\ARMCC\Bin\..\include\string.h
 third\computer.o: ..\User\MYRTC.h
 third\computer.o: ..\User\SEND.h
-third\computer.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\math.h
+third\computer.o: D:\keil\ARM\ARMCC\Bin\..\include\math.h

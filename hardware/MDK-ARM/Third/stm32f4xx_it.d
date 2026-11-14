@@ -7,7 +7,7 @@ third\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h
 third\stm32f4xx_it.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 third\stm32f4xx_it.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h
 third\stm32f4xx_it.o: ../Drivers/CMSIS/Include/core_cm4.h
-third\stm32f4xx_it.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdint.h
+third\stm32f4xx_it.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
 third\stm32f4xx_it.o: ../Drivers/CMSIS/Include/cmsis_version.h
 third\stm32f4xx_it.o: ../Drivers/CMSIS/Include/cmsis_compiler.h
 third\stm32f4xx_it.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
@@ -15,7 +15,7 @@ third\stm32f4xx_it.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 third\stm32f4xx_it.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h
 third\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
 third\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-third\stm32f4xx_it.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stddef.h
+third\stm32f4xx_it.o: D:\keil\ARM\ARMCC\Bin\..\include\stddef.h
 third\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
 third\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
 third\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
@@ -41,5 +41,5 @@ third\stm32f4xx_it.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h
 third\stm32f4xx_it.o: ../Core/Inc/stm32f4xx_it.h
 third\stm32f4xx_it.o: ../User/MYRTC.h
 third\stm32f4xx_it.o: ../User/Config.h
-third\stm32f4xx_it.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdio.h
+third\stm32f4xx_it.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
 third\stm32f4xx_it.o: ../User/SEND.h

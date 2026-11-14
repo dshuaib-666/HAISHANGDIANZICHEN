@@ -7,7 +7,7 @@ third\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_def.h
 third\main.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f4xx.h
 third\main.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/stm32f407xx.h
 third\main.o: ../Drivers/CMSIS/Include/core_cm4.h
-third\main.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdint.h
+third\main.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
 third\main.o: ../Drivers/CMSIS/Include/cmsis_version.h
 third\main.o: ../Drivers/CMSIS/Include/cmsis_compiler.h
 third\main.o: ../Drivers/CMSIS/Include/cmsis_armcc.h
@@ -15,7 +15,7 @@ third\main.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 third\main.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h
 third\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
 third\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-third\main.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stddef.h
+third\main.o: D:\keil\ARM\ARMCC\Bin\..\include\stddef.h
 third\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
 third\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
 third\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
@@ -41,9 +41,9 @@ third\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pcd_ex.h
 third\main.o: ../USB_DEVICE/App/usb_device.h
 third\main.o: ../Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_def.h
 third\main.o: ../USB_DEVICE/Target/usbd_conf.h
-third\main.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdio.h
-third\main.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdlib.h
-third\main.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\string.h
+third\main.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
+third\main.o: D:\keil\ARM\ARMCC\Bin\..\include\stdlib.h
+third\main.o: D:\keil\ARM\ARMCC\Bin\..\include\string.h
 third\main.o: ../User/SdManager.h
 third\main.o: ../User/Config.h
 third\main.o: ../User/ProcessData.h

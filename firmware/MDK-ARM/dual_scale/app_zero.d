@@ -1,0 +1,13 @@
+dual_scale\app_zero.o: ../Core/Src/app/app_zero.c
+dual_scale\app_zero.o: ../Core/Inc/app/app_zero.h
+dual_scale\app_zero.o: ../Core/Inc/app/app_scale.h
+dual_scale\app_zero.o: ../Core/Inc/algo/algo_stream.h
+dual_scale\app_zero.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
+dual_scale\app_zero.o: ../Core/Inc/algo/algo_align.h
+dual_scale\app_zero.o: ../Core/Inc/algo/algo_dsp.h
+dual_scale\app_zero.o: ../Core/Inc/algo/algo_pair.h
+dual_scale\app_zero.o: ../Core/Inc/algo/algo_params.h
+dual_scale\app_zero.o: ../Core/Inc/algo/algo_est.h
+dual_scale\app_zero.o: D:\keil\ARM\ARMCC\Bin\..\include\string.h
+dual_scale\app_zero.o: ../Core/Inc/app/app_calib.h
+dual_scale\app_zero.o: D:\keil\ARM\ARMCC\Bin\..\include\math.h

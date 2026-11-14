@@ -1,8 +1,8 @@
 third\send.o: ..\User\SEND.c
 third\send.o: ..\User\SEND.h
-third\send.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdio.h
+third\send.o: D:\keil\ARM\ARMCC\Bin\..\include\stdio.h
 third\send.o: ..\User\Config.h
-third\send.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stdint.h
+third\send.o: D:\keil\ARM\ARMCC\Bin\..\include\stdint.h
 third\send.o: ..\User\MYRTC.h
 third\send.o: ../Core/Inc/main.h
 third\send.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
@@ -19,7 +19,7 @@ third\send.o: ../Drivers/CMSIS/Include/mpu_armv7.h
 third\send.o: ../Drivers/CMSIS/Device/ST/STM32F4xx/Include/system_stm32f4xx.h
 third\send.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal.h
 third\send.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/Legacy/stm32_hal_legacy.h
-third\send.o: C:\Users\Van\AppData\Local\Keil_v5\ARM\v5.06u7\Bin\..\include\stddef.h
+third\send.o: D:\keil\ARM\ARMCC\Bin\..\include\stddef.h
 third\send.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_rcc_ex.h
 third\send.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio.h
 third\send.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_gpio_ex.h
