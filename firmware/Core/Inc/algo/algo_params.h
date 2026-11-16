@@ -27,6 +27,13 @@ typedef struct
   double step_guard_g;
   double rearm_n_sigma;
   int    rearm_min_n;
+  double rearm_floor_g;      /* 回臂质量下限（克）：取走重物后传感器残留
+                                0.2~5g，而 3σ 判据（σ 下限 4e-5 → 3σ≈
+                                0.18g）永远不满足，状态会卡在称量态
+                                （零点停更、清零键被 9300 拒）。|Δr|×k
+                                小于此值连续 rearm_min_n 点也回臂。
+                                1g 对 6kg 量程=0.017%FS，且 <min_lock
+                                的载荷本就不开事件，不会误吃真实载荷 */
   double settle_s;
   double conv_win_s;
   double conv_min_s;
@@ -71,6 +78,7 @@ static const AlgoParams algo_params_default = {
   .step_guard_g          = 200.0,
   .rearm_n_sigma         = 3.0,
   .rearm_min_n           = 3,
+  .rearm_floor_g         = 1.0,   /* 回臂质量下限：残留 <1g 视为已取走 */
   .settle_s              = 1.2,
   .conv_win_s            = 3.0,
   .conv_min_s            = 2.0,

@@ -44,6 +44,10 @@ void Beeper_Ok(void);       /* 2×80ms  成功（清零/跨度/prep 提交）*/
 void Beeper_Fail(void);     /* 3×80ms  软失败（9100/9200/9300）*/
 void Beeper_Error(void);    /* 1×400ms 硬错误（7777）*/
 
+/* 当前音型是否还在响（1=忙）。给"必须完整播放"的场景用：例如 KEY4
+   触发标定时的连响三声，先等建基线提示音播完再发，避免被忙时丢弃。 */
+uint8_t Beeper_Busy(void);
+
 /* 音量（CCR 0~249，>249 钳到 249=PERIOD/2；调试器可改 s_level 等效）*/
 void Beeper_SetLevel(uint16_t ccr);
 

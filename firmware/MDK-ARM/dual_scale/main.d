@@ -29,6 +29,7 @@ dual_scale\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_adc_ex.h
 dual_scale\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash.h
 dual_scale\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ex.h
 dual_scale\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_flash_ramfunc.h
+dual_scale\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_iwdg.h
 dual_scale\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr.h
 dual_scale\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_pwr_ex.h
 dual_scale\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim.h
@@ -36,6 +37,7 @@ dual_scale\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_tim_ex.h
 dual_scale\main.o: ../Drivers/STM32F4xx_HAL_Driver/Inc/stm32f4xx_hal_uart.h
 dual_scale\main.o: ../Core/Inc/adc.h
 dual_scale\main.o: ../Core/Inc/dma.h
+dual_scale\main.o: ../Core/Inc/iwdg.h
 dual_scale\main.o: ../Core/Inc/tim.h
 dual_scale\main.o: ../Core/Inc/usart.h
 dual_scale\main.o: ../Core/Inc/gpio.h

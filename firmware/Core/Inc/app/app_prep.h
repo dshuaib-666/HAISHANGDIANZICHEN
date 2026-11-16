@@ -53,7 +53,7 @@
                                           检测的本来是"盘上有物"的直流）*/
 #define APP_PREP_EMPTY_LIVE_N  128     /* 空盘实时质量样本环（12.8s 覆盖
                                           10s 段 + 保险期）*/
-#define APP_PREP_EMPTY_MAX_B   70000   /* 入口空盘粗查：m10-1 实测新 6kg B
+#define APP_PREP_EMPTY_MAX_B   80000   /* 入口空盘粗查：m10-1 实测新 6kg B
                                           模块空盘 53817（MAD 1.0，2026-10-31）
                                           + 跨会话漂移与遗留物余量；忘盘
                                           砝码/瓶子必拦，100g 级残留靠 d2
@@ -64,9 +64,11 @@
                                           2026-11-14 现场：本机空盘 B 内码
                                           60000 出头 > 旧值 57000，prep 恒判
                                           "未清盘"（9000）无法标定 → 抬到
-                                          70000。新值仍低于 空盘+500g 的约
-                                          84000，忘盘砝码照拦；100g 级残留
-                                          由 d2 静态门兜底，不靠此门 */
+                                          70000。
+                                          2026-11-15：现场再抬到 80000（空盘
+                                          码继续上漂）；仍低于 空盘+500g 的
+                                          约 84000，忘盘砝码照拦；100g 级
+                                          残留由 d2 静态门兜底，不靠此门 */
 #define APP_PREP_R_PLACE       0.03    /* 放置/移除门限（比值域）≈44g：
                                           运动残余 ±0.002 的 15×，最小
                                           砝码 100g(Δr≈0.068) 的 44% */
@@ -122,9 +124,10 @@ void AppPrepNotifyComms(AppPrep *pp, uint8_t both_fresh,
                         uint32_t n_ok, uint32_t n_err, uint32_t n_drop);
 void AppPrepNotifyLive(AppPrep *pp, int ready, double mass_g);
 
-/* 状态机驱动。ev_key0_long：IDLE=进入；运行中=中止。
+/* 状态机驱动。ev_cal：KEY4（PA15）开机窗口内触发、且建基线完成时置 1：
+   IDLE=进入标定；运行中=中止。
    返回 1 = 刚完成一次标定提交（main 发事件行）。*/
-int AppPrepPoll(AppPrep *pp, AppScale *app, double t_now, int ev_key0_long);
+int AppPrepPoll(AppPrep *pp, AppScale *app, double t_now, int ev_cal);
 
 /* 显示：≥0=显示码；-1=非预备态。-2 未用（无闪烁半拍语义）。*/
 int AppPrepDisplay(AppPrep *pp, double t_now);

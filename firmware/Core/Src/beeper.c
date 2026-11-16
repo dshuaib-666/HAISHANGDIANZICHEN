@@ -37,6 +37,11 @@ void Beeper_Ok(void)    { Beeper_Beep(2U, 80U, 80U); }
 void Beeper_Fail(void)  { Beeper_Beep(3U, 80U, 80U); }
 void Beeper_Error(void) { Beeper_Beep(1U, 400U, 100U); }
 
+uint8_t Beeper_Busy(void)
+{
+  return (s_left != 0U) ? 1U : 0U;
+}
+
 void Beeper_SetLevel(uint16_t ccr)
 {
   if (ccr > BEEPER_PERIOD / 2U) ccr = BEEPER_PERIOD / 2U;

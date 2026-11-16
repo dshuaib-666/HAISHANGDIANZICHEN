@@ -60,7 +60,7 @@ static void fail(AppZero *z, double t_now, int code)
   enter(z, ZO_RESULT, t_now);
 }
 
-/* 跨度上下文入口：锁定称量中且读数在标准砝码 ±5% 窗内 */
+/* 跨度上下文入口：锁定称量中且读数在标准砝码 ±20%（400~600 g）窗内 */
 static int span_entry_ok(AppScale *app)
 {
   double m, d, lo, hi;
@@ -76,27 +76,38 @@ static int span_entry_ok(AppScale *app)
   return (d > lo && d < hi) ? 1 : 0;
 }
 
-int AppZeroPoll(AppZero *z, AppScale *app, double t_now, int ev_key1_long)
+int AppZeroPoll(AppZero *z, AppScale *app, double t_now,
+                int ev_zero, int ev_span)
 {
   double el = t_now - z->t_state;
 
-  if (ev_key1_long)
+  if ((ev_zero != 0) || (ev_span != 0))
   {
     if (z->state == ZO_IDLE)
     {
-      /* 上下文分流：先跨度（带砝码），不满足再看零点（空盘）*/
-      if (span_entry_ok(app))
+      if (ev_span != 0)
       {
-        z->k_old = app->p.k_g_per_r;
+        /* 左键：跨度校正（带 500 g 标准砝码修 k）。
+           入口门：估计器锁定且读数在 ±20%（400~600 g）窗内；不在窗内
+           直接拒绝，不再回退成零点（分键后语义单一）。 */
+        if (span_entry_ok(app))
+        {
+          z->k_old = app->p.k_g_per_r;
+          z->sigma_g = 0.0;
+          z->offset_g = 0.0;
+          z->n_used = 0;
+          AppScaleCalibReset(app);
+          app->calib_collect = 1U;
+          enter(z, ZO_SPAN, t_now);
+          return 0;
+        }
         z->sigma_g = 0.0;
         z->offset_g = 0.0;
         z->n_used = 0;
-        AppScaleCalibReset(app);
-        app->calib_collect = 1U;
-        enter(z, ZO_SPAN, t_now);
+        fail(z, t_now, 9300);
         return 0;
       }
-      /* 零点入口：k 已知、基线已建立、估计器空闲、无并行采集 */
+      /* 中键：零点重锚（空盘）——k 已知、基线已建立、估计器空闲、无并行采集 */
       if ((app->p.k_g_per_r == 0.0)
           || (app->est.idle_n < 30)
           || (app->est.state != 0)
@@ -118,7 +129,7 @@ int AppZeroPoll(AppZero *z, AppScale *app, double t_now, int ev_key1_long)
     }
     else
     {
-      app->calib_collect = 0U;      /* 中止（任何采集中状态）*/
+      app->calib_collect = 0U;      /* 中止（任何采集中状态，任一键都可中止）*/
       enter(z, ZO_IDLE, t_now);
     }
     return 0;
@@ -196,7 +207,7 @@ int AppZeroPoll(AppZero *z, AppScale *app, double t_now, int ev_key1_long)
         return 0;
       }
       /* 窗口复核（入口查的是锁定读数，此处查实测中值——采集中
-         被取走/更换在此拦截）：隐含质量须仍在 ±5% 窗内 */
+         被取走/更换在此拦截）：隐含质量须仍在 ±20% 窗内 */
       if (fabs(z->offset_g) > APP_ZERO_SPAN_MASS_G * APP_ZERO_SPAN_FRAC)
       {
         fail(z, t_now, 9200);

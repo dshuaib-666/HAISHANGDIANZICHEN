@@ -20,6 +20,7 @@
 #include "main.h"
 #include "adc.h"
 #include "dma.h"
+#include "iwdg.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
@@ -46,6 +47,38 @@
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
 
+/* —— 自动休眠（2026-11-15：改为“睡前打标记 + 软复位”方案）——
+   连续 SLEEP_QUIET_MS 内实时质量都在 ±SLEEP_BAND_G 内，且无称量事件/
+   清零/预备/录制/按键，则 2 短鸣 → 数码管亮度 0 → BKP 打标记 → 软复位。
+   复位后的“睡眠启动”不启动 IWDG、直接 STOP；按键 EXTI 唤醒后整机复位，
+   回到正常启动（IWDG 重新开启）。原因：IWDG 由 LSI 驱动，在 STOP 里仍然
+   计数，不这么做会被每 5.58~15.4 s 复位一次，根本睡不住。 */
+#ifndef SLEEP_AUTO_ENABLE
+#define SLEEP_AUTO_ENABLE     1        /* 调试期置 0（或 -DSLEEP_AUTO_ENABLE=0）整体禁用 */
+#endif
+#define SLEEP_QUIET_MS        300000U    /* 5 分钟空载窗口 */
+#define SLEEP_BAND_G          3.0
+#define SLEEP_BEEP_SETTLE_MS  350U
+#define SLEEP_BKP_MAGIC       0x57444753UL  /* "WDGS"：BKP0R 睡眠请求标记 */
+
+/* —— 电池低压检测（2026-11-15）——
+   PA4/ADC1_IN4：12V—100k—PA4—20k—GND，分压比 6。
+   低于 11.4V 报警、高于 11.6V 清除（0.2V 迟滞）；3 短鸣 + 数码管
+   "11.4U" 闪 10s → 直接休眠。低电期间禁用 KEY4 标定；10s 内长按中键
+   可取消强制休眠（应急使用）。 */
+#define BAT_WARN_MV      11400U          /* 报警门限 */
+#define BAT_CLEAR_MV     11600U          /* 清除门限（迟滞 +0.2V）*/
+#define BAT_VREF_MV      3300U
+#define BAT_ADC_MAX      4095U
+#define BAT_DIV          6U              /* (100k+20k)/20k */
+#define BAT_N            16U             /* 中值滤波样本数 */
+#define BAT_SLEEP_MS     10000U          /* 提醒后强制休眠延时 */
+
+/* 调试期置 1：STOP 时保持 SWD（DBGMCU_CR.DBG_STOP）；量产必须为 0 */
+#ifndef SLEEP_KEEP_SWD
+#define SLEEP_KEEP_SWD        0
+#endif
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -69,6 +102,26 @@ static uint32_t g_lastDispTick;
 static uint8_t g_prevRecArm = 0U;  /* g_recArm 沿检测（算法暂停/恢复）*/
 static uint8_t g_warmupBeep = 1U;  /* 上电建基线阶段："---" 闪烁同步短鸣（首次 ready 后关）*/
 static uint8_t g_blinkOn = 0U;     /* "---" 亮半拍沿检测（每周期只响一次，防 200ms 刷屏连响）*/
+#if (SLEEP_AUTO_ENABLE != 0)
+static uint8_t  g_quietArmed = 0U;   /* 空载计时已启动 */
+static uint32_t g_quietT0 = 0U;      /* 空载计时起点（HAL tick）*/
+static uint8_t  g_sleepPending = 0U; /* 已 2 短鸣，等响完进 STOP */
+static uint32_t g_sleepAt = 0U;      /* 计划进 STOP 的时刻 */
+#endif
+static uint8_t g_bootIwdgReset = 0U; /* 本次启动是 IWDG 复位（供启动日志）*/
+static uint8_t g_bkpOk = 1U;         /* 正常启动时 BKP0R 写/读自检结果 */
+static uint8_t  g_key4Armed = 1U;    /* KEY4 开机 10 s 窗口内可触发标定 */
+static uint8_t  g_key4Held = 0U;     /* KEY4 按住计时中 */
+static uint32_t g_key4T0 = 0U;       /* KEY4 按下时刻 */
+static uint8_t  g_calReq = 0U;       /* 已连响三下，等建基线完成后进标定 */
+static uint8_t  g_calBeep = 0U;      /* 待补响“连响三下”（避开忙时丢弃）*/
+static uint32_t g_batMv = 0U;        /* 最近一次电池电压（mV）*/
+static uint32_t g_batChkTick = 0U;   /* 上次检测时刻；0 = 还没测过 */
+static uint32_t g_lowBatT0 = 0U;     /* 低电报警起始时刻 */
+static uint8_t  g_lowBat = 0U;       /* 当前处于低电提醒 */
+static uint8_t  g_lowBatCancel = 0U; /* 用户已取消强制休眠 */
+static uint8_t  g_lowBatMuted = 0U;  /* 本次开机不再重复报警 */
+static uint8_t  g_batLowEver = 0U;   /* 本次开机出现过低电（禁 KEY4 标定）*/
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -125,6 +178,219 @@ static void HeartbeatOnce(void)
            (unsigned int)QshDrv_Ready());
 }
 
+/* —— 独立看门狗（2026-11-15）——
+   参数由 CubeMX 的 `MX_IWDG_Init()` 决定（当前 .ioc：预分频 128 + RLR 4095）：
+     典型 16.38 s @32 kHz；最快 11.15 s（LSI 47 kHz）~ 最慢 30.84 s（17 kHz）。
+   Flash 擦除最大按 4 s，余量充足；代价是卡死要 11~31 s 才复位。
+   喂狗统一写 KR=0xAAAA，与预分频无关；改预分频只需改 .ioc，不用动这里。
+   option byte 必须是软件启动（IWDG_SW=1），否则复位关不掉它（睡眠方案依赖这点）。 */
+void AppWdg_Feed(void)
+{
+  IWDG->KR = 0xAAAAU;                 /* 重装计数 */
+}
+
+/* —— 睡眠启动判定（2026-11-15）——
+   只有“软件复位(SFTRST) + BKP0R 魔术值”同时成立才算睡眠请求。
+   加复位原因判断是为了防 VBAT 保持 BKP 时，整机断电再上电被误判成
+   睡眠启动（设备会像死机一样躺着）。 */
+static int BootIsSleepRequest(void)
+{
+  return (((RCC->CSR & RCC_CSR_SFTRSTF) != 0U)
+          && (RTC->BKP0R == SLEEP_BKP_MAGIC)) ? 1 : 0;
+}
+
+/* —— 睡眠启动：不启动 IWDG，不初始化 UART/数码管/驱动 ——
+   只做四件事：蜂鸣器拉低、按键 EXTI、485 四脚高阻、进 STOP。
+   醒来即整机复位，回到正常启动。 */
+static void SleepBoot(void)
+{
+  GPIO_InitTypeDef g = {0};
+
+  /* 1) 蜂鸣器先拉低：复位后 PA6 是浮空输入，先钉住防毛刺 */
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  g.Pin   = GPIO_PIN_6;
+  g.Mode  = GPIO_MODE_OUTPUT_PP;
+  g.Pull  = GPIO_NOPULL;
+  g.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_WritePin(GPIOA, GPIO_PIN_6, GPIO_PIN_RESET);
+  HAL_GPIO_Init(GPIOA, &g);
+
+  /* 2) 按键 + EXTI（MX_GPIO_Init 只配 PB13/14/15 与 EXTI15_10）*/
+  MX_GPIO_Init();
+
+  /* 3) 485 四脚模拟高阻（防向断电模块倒灌）*/
+  __HAL_RCC_GPIOB_CLK_ENABLE();
+  g.Mode = GPIO_MODE_ANALOG;
+  g.Pull = GPIO_NOPULL;
+  g.Pin  = GPIO_PIN_2 | GPIO_PIN_3;     /* USART2 TX/RX */
+  HAL_GPIO_Init(GPIOA, &g);
+  g.Pin  = GPIO_PIN_10 | GPIO_PIN_11;   /* USART3 TX/RX */
+  HAL_GPIO_Init(GPIOB, &g);
+
+#if (SLEEP_KEEP_SWD != 0)
+  DBGMCU->CR |= DBGMCU_CR_DBG_STOP;     /* 调试用；量产必须为 0 */
+#endif
+
+  /* 4) 清 pending、停 SysTick、进 STOP；按键唤醒 → 整机复位 */
+  __HAL_GPIO_EXTI_CLEAR_IT(GPIO_PIN_13 | GPIO_PIN_14 | GPIO_PIN_15);
+  NVIC_ClearPendingIRQ(EXTI15_10_IRQn);
+  HAL_SuspendTick();
+  HAL_PWR_EnterSTOPMode(PWR_LOWPOWERREGULATOR_ON, PWR_STOPENTRY_WFI);
+  NVIC_SystemReset();
+  for (;;)
+  {
+  }
+}
+
+/* —— 拓展板 KEY4（PA15）：输入、内部上拉、按下低电平 ——
+   PA15 复位后是 JTDI（AF0）；F4 上把它配成普通输入即可当 GPIO 用，
+   SWD 仍在 PA13/PA14，不影响下载/调试。 */
+static void Key4_Init(void)
+{
+  GPIO_InitTypeDef g = {0};
+
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  g.Pin  = GPIO_PIN_15;
+  g.Mode = GPIO_MODE_INPUT;
+  g.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOA, &g);
+}
+
+/* —— 电池电压：16 次采集中值，返回 mV；ADC 失败返回 0xFFFFFFFF ——
+   分压 12V—100k—PA4—20k—GND（比 6），ADC 12bit、VDDA=3.3V。
+   采样时间已改 480 周期（adc.c），匹配 16.7k 源阻抗。 */
+static uint32_t BatVolt_ReadMv(void)
+{
+  uint16_t v[BAT_N];
+  uint8_t i, j;
+  uint16_t t;
+  uint32_t code;
+
+  for (i = 0U; i < BAT_N; i++)
+  {
+    if (HAL_ADC_Start(&hadc1) != HAL_OK) return 0xFFFFFFFFU;
+    if (HAL_ADC_PollForConversion(&hadc1, 5U) != HAL_OK)
+    {
+      (void)HAL_ADC_Stop(&hadc1);
+      return 0xFFFFFFFFU;
+    }
+    v[i] = (uint16_t)HAL_ADC_GetValue(&hadc1);
+    (void)HAL_ADC_Stop(&hadc1);
+  }
+  /* 插入排序取中值（16 个元素，开销量可忽略）*/
+  for (i = 1U; i < BAT_N; i++)
+  {
+    t = v[i];
+    j = i;
+    while ((j > 0U) && (v[j - 1U] > t))
+    {
+      v[j] = v[j - 1U];
+      j--;
+    }
+    v[j] = t;
+  }
+  code = ((uint32_t)v[BAT_N / 2U - 1U] + (uint32_t)v[BAT_N / 2U]) / 2U;
+  return (uint32_t)(((uint64_t)code * (uint64_t)BAT_VREF_MV * BAT_DIV)
+                    / BAT_ADC_MAX);
+}
+
+/* —— 低电显示文本：11.4V → "11.4U"（U = 请充电，模块字库需实测）—— */
+static void Bat_ShowVoltage(void)
+{
+  char b[8];
+  uint32_t whole, frac;
+
+  if (g_batMv == 0xFFFFFFFFU) return;
+  whole = g_batMv / 1000U;
+  frac  = (g_batMv % 1000U) / 100U;
+  if (whole >= 10U)
+  {
+    b[0] = (char)('0' + (whole / 10U));
+    b[1] = (char)('0' + (whole % 10U));
+    b[2] = '.';
+    b[3] = (char)('0' + frac);
+    b[4] = 'U';
+    b[5] = '\0';
+  }
+  else
+  {
+    b[0] = (char)('0' + whole);
+    b[1] = '.';
+    b[2] = (char)('0' + frac);
+    b[3] = 'U';
+    b[4] = '\0';
+  }
+  DigitTube_SetText(b);
+}
+
+#if (SLEEP_AUTO_ENABLE != 0)
+/* —— 自动休眠：前提判定（2026-11-14）——
+   读数就绪且在 ±SLEEP_BAND_G、无称量事件/清零/预备/录制、无按键、双通道
+   数据新鲜（<500 ms）。任一条件不满足都要重新计满 SLEEP_QUIET_MS。 */
+static int SleepConditionOk(void)
+{
+  int32_t ca = 0, cb = 0;
+  uint32_t ageA = 0U, ageB = 0U;
+  int ready = 0;
+  double m;
+
+  if ((QshDrv_Last(QSH_CH_A_REF, &ca, &ageA) == 0) || (ageA > 500U)) return 0;
+  if ((QshDrv_Last(QSH_CH_B_MEAS, &cb, &ageB) == 0) || (ageB > 500U)) return 0;
+
+  m = AppScaleLiveMass(&g_scale, &ready);
+  if (ready == 0) return 0;
+  if ((m < -SLEEP_BAND_G) || (m > SLEEP_BAND_G)) return 0;
+  /* 只看 state：est.locked 是"本事件曾锁定"标志，REARM 时不会被清
+     （algo_est 的 near_n 分支只清 state），拿它当"当前是否在称量"用
+     会导致第一次称量之后自动休眠永远不触发。 */
+  if (g_scale.est.state != 0) return 0;
+  if (g_scale.calib_collect != 0U) return 0;
+  if (g_zero.state != ZO_IDLE) return 0;
+  if (g_prep.state != PP_IDLE) return 0;
+  if (g_recArm != 0U) return 0;
+  if ((Keys_IsPressed(0U) != 0) || (Keys_IsPressed(1U) != 0)
+      || (Keys_IsPressed(2U) != 0)) return 0;
+  return 1;
+}
+
+/* —— 睡前序列（2026-11-15：不再直接进 STOP，改为打标记 + 软复位）——
+   2 短鸣由调用方先发；这里负责：停轮询 → 蜂鸣器静音 → 数码管亮度 0 并等
+   这一帧发完 → BKP0R 打标记 → 软复位。复位后的 SleepBoot 不启动 IWDG、
+   直接 STOP；按键唤醒再整机复位回正常启动。复位本身会把 UART 引脚复位成
+   浮空，所以这里不需要 DeInit UART / 置 analog。 */
+static void RequestSleepReset(void)
+{
+  uint8_t i;
+
+  /* 1) 停 10Hz 轮询，避免复位前还在发帧 */
+  (void)HAL_TIM_Base_Stop_IT(&htim2);
+
+  /* 2) 蜂鸣器静音 */
+  Beeper_Init();
+
+  /* 3) 数码管亮度 0：复位不清屏，必须先把这一帧真正发完 */
+  DigitTube_SetBrightness(0U);
+  for (i = 0U; i < 60U; i++)
+  {
+    DigitTube_Process();
+    if (HAL_UART_GetState(&huart4) == HAL_UART_STATE_READY)
+    {
+      break;
+    }
+    HAL_Delay(1U);
+  }
+  HAL_Delay(10U);
+
+  /* 4) 打 BKP 标记后软复位（备份寄存器跨系统复位保留；VBAT 掉电才清）*/
+  HAL_PWR_EnableBkUpAccess();
+  RTC->BKP0R = SLEEP_BKP_MAGIC;
+  NVIC_SystemReset();
+  for (;;)
+  {
+  }
+}
+#endif /* SLEEP_AUTO_ENABLE */
+
 /* USER CODE END 0 */
 
 /**
@@ -137,15 +403,33 @@ int main(void)
   /* USER CODE BEGIN 1 */
 
   /* USER CODE END 1 */
-	
 
-	
   /* MCU Configuration--------------------------------------------------------*/
 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+
+  /* —— 睡眠启动判定（必须在清 reset flags 之前读 CSR）——
+     BKP0R 属 RTC 备份域：F407 没有 RTCAPBEN 位（APB1ENR bit28 是 PWREN），
+     RTC APB 接口常开，只需要 PWR 时钟；写 BKP 前还要 DBP=1。 */
+  __HAL_RCC_PWR_CLK_ENABLE();
+  g_bootIwdgReset = ((RCC->CSR & RCC_CSR_IWDGRSTF) != 0U) ? 1U : 0U;
+  if (BootIsSleepRequest() != 0)
+  {
+    /* 先清标记：这样睡眠期间任何复位都会回正常启动，不会“躺死” */
+    HAL_PWR_EnableBkUpAccess();
+    RTC->BKP0R = 0U;
+    __HAL_RCC_CLEAR_RESET_FLAGS();
+    SleepBoot();                      /* 不返回 */
+  }
+  /* 正常启动：先做一次 BKP 写/读自检（确认备份域可访问），再清标记 */
+  HAL_PWR_EnableBkUpAccess();
+  RTC->BKP0R = 0x1234ABCDUL;
+  g_bkpOk = (RTC->BKP0R == 0x1234ABCDUL) ? 1U : 0U;
+  RTC->BKP0R = 0U;
+  __HAL_RCC_CLEAR_RESET_FLAGS();
 
   /* USER CODE END Init */
 
@@ -166,10 +450,22 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM10_Init();
   MX_ADC1_Init();
+  MX_IWDG_Init();
   /* USER CODE BEGIN 2 */
+  /* IWDG 参数以 CubeMX/.ioc 为准（预分频 128 + 4095），这里只加调试冻结 */
+  __HAL_DBGMCU_FREEZE_IWDG();       /* 调试断点时不复位；量产无影响 */
   DwtTime_Init();
   Dbg_Init();
+  if (g_bootIwdgReset != 0U)
+  {
+    Dbg_Line("# RESET iwdg (watchdog)");
+  }
+  if (g_bkpOk == 0U)
+  {
+    Dbg_Line("# WARN RTC BKP write/read failed");
+  }
   Keys_Init();
+  Key4_Init();              /* 拓展板 KEY4（PA15，开机标定触发键）*/
   QshDrv_Init();            /* 收帧启动 + 模块配置状态机，就绪后 TIM2 自动轮询 */
   HAL_TIM_Base_Start_IT(&htim2);
   Beeper_Init();            /* PWM 启动后立即静音（上电不响）*/
@@ -299,8 +595,95 @@ int main(void)
         tubeBlack = 1U;
       }
 
-      int k0l = 0;   /* KEY0 长按事件（预备模式用，跨下方两个块）*/
+      /* —— 电池低压：开机 + 每 10 s 复检（11.4V 报警 / 11.6V 清除）—— */
+      {
+        uint32_t nowB = HAL_GetTick();
+        if ((g_batChkTick == 0U)
+            || ((uint32_t)(nowB - g_batChkTick) >= 10000U))
+        {
+          uint32_t mv = BatVolt_ReadMv();
+          uint8_t first = (g_batChkTick == 0U) ? 1U : 0U;
+          g_batChkTick = nowB;
+          if (mv != 0xFFFFFFFFU)
+          {
+            g_batMv = mv;
+            if (first != 0U)
+            {
+              Dbg_Line("# BAT %lu mV", (unsigned long)mv);
+            }
+            if ((g_lowBat == 0U) && (g_lowBatMuted == 0U)
+                && (mv < BAT_WARN_MV))
+            {
+              g_lowBat = 1U;
+              g_lowBatT0 = nowB;
+              g_batLowEver = 1U;
+              g_warmupBeep = 0U;        /* 停建基线提示音，突出低电三连响 */
+              Beeper_Beep(3U, 80U, 80U);
+              Dbg_Line("# BAT low %lu mV -> charge, sleep in 10s",
+                       (unsigned long)mv);
+            }
+            else if ((g_lowBat != 0U) && (mv > BAT_CLEAR_MV))
+            {
+              g_lowBat = 0U;
+              Dbg_Line("# BAT ok %lu mV", (unsigned long)mv);
+            }
+          }
+        }
+        if ((g_lowBat != 0U) && (g_lowBatCancel == 0U)
+            && ((uint32_t)(nowB - g_lowBatT0) >= BAT_SLEEP_MS))
+        {
+#if (SLEEP_AUTO_ENABLE != 0)
+          Dbg_Line("# BAT sleep");
+          RequestSleepReset();          /* 不返回 */
+#else
+          g_lowBat = 0U;
+#endif
+        }
+      }
 
+      /* —— 拓展板 KEY4（PA15）：开机 10 s 内持续按住 2 s 触发标定 ——
+         触发后连响三下；等建基线完成（--- 消失）再进入预备标定。
+         窗口一旦错过（>10 s）本次开机不再触发。 */
+      if (g_batLowEver != 0U)
+      {
+        g_key4Armed = 0U;               /* 低电：禁止标定（弱电写 Flash 危险）*/
+      }
+      if (g_key4Armed != 0U)
+      {
+        uint32_t now4 = HAL_GetTick();
+        if (now4 < 10000U)
+        {
+          if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_15) == GPIO_PIN_RESET)
+          {
+            if (g_key4Held == 0U)
+            {
+              g_key4Held = 1U;
+              g_key4T0 = now4;
+            }
+            else if ((uint32_t)(now4 - g_key4T0) >= 2000U)
+            {
+              g_key4Armed = 0U;
+              g_calReq = 1U;
+              g_calBeep = 1U;
+              g_warmupBeep = 0U;      /* 停建基线提示音，保证三声完整 */
+              Dbg_Line("# CAL trigger (KEY4)");
+            }
+          }
+          else
+          {
+            g_key4Held = 0U;
+          }
+        }
+        else
+        {
+          g_key4Armed = 0U;           /* 10 s 窗口结束，本次开机不再触发 */
+        }
+      }
+      if ((g_calBeep != 0U) && (Beeper_Busy() == 0U))
+      {
+        g_calBeep = 0U;
+        Beeper_Beep(3U, 80U, 80U);    /* 连响三下：标定已触发 */
+      }
 
       /* 录制模式：数码管显示 B 通道原始码/10（M1 行为）*/
       if (g_recAlgoHold != 0U)
@@ -341,34 +724,46 @@ int main(void)
       }
 
 
-/* —— 按键分发（2026-10-16 重构：数据模式/独立标定/打点已删）——
-         KEY0/PB13 长按 = 预备模式进入/中止（清零运行中拒绝）
-         KEY1/PB14 长按 = 清零进入/中止（预备/录制中拒绝）
-         KEY2/PB15 闲置 */
+/* —— 按键分发（2026-11-15 新映射）——
+         KEY0/PB13 长按 = 无功能（保留为唤醒源）
+         KEY1/PB14 长按 = 清零（空盘零点重锚）进入/中止
+         KEY2/PB15 长按 = 修正 k（带 500 g 标准砝码的跨度校正）进入/中止
+         KEY4/PA15     = 开机 10 s 内按住 2 s 触发标定（见上方 KEY4 检测）
+   中键只做清零、不再自动分流到跨度校正——避免“想清零却把 k 改了”。 */
       {
-        int k1l = 0;
+        int evZero = 0;
+        int evSpan = 0;
         int zeroed;
-        ev = Keys_Take(0U);
-        if (ev == KEY_EV_LONG)
-        {
-          /* 组合键门槛：按住 KEY2（闲置键）不放 + 长按 KEY0——prep
-             为出厂/维修级操作（重写 Flash k），双键确认防误触 */
-          if ((g_zero.state == ZO_IDLE) && (Keys_IsPressed(2U) != 0))
-          {
-            k0l = 1;
-          }
-        }
+        (void)Keys_Take(0U);              /* KEY0 长按无功能，消费掉事件 */
         ev = Keys_Take(1U);
         if (ev == KEY_EV_LONG)
         {
+          if ((g_lowBat != 0U) && (g_lowBatCancel == 0U))
+          {
+            /* 低电提醒期间长按中键：取消强制休眠，允许应急使用 */
+            g_lowBatCancel = 1U;
+            g_lowBatMuted = 1U;
+            Dbg_Line("# BAT cancel (use anyway)");
+          }
+          else if ((g_prep.state == PP_IDLE) && (g_recArm == 0U)
+                   && (g_recAlgoHold == 0U))
+          {
+            /* 中键：只做清零（空盘零点重锚），不再自动分流到跨度校正 */
+            evZero = 1;
+          }
+        }
+        ev = Keys_Take(2U);
+        if (ev == KEY_EV_LONG)
+        {
+          /* 左键：修正 k（500 g 跨度校正）*/
           if ((g_prep.state == PP_IDLE) && (g_recArm == 0U)
               && (g_recAlgoHold == 0U))
           {
-            k1l = 1;
+            evSpan = 1;
           }
         }
         zeroed = AppZeroPoll(&g_zero, &g_scale,
-                             (double)HAL_GetTick() / 1000.0, k1l);
+                             (double)HAL_GetTick() / 1000.0, evZero, evSpan);
         /* 开始沿：长按成功进入采集（ZO_IDLE→ZO_COLLECT/SPAN）——
            1 短提示"操作已开始、可松手"。必须与完成音（零点 2 短 /
            跨度 1 长）区分开，否则与零点完成同为 2 短会混淆（实测：
@@ -439,10 +834,25 @@ int main(void)
           double m2 = AppScaleLiveMass(&g_scale, &rdy2);
           AppPrepNotifyLive(&g_prep, rdy2, m2);
         }
-        committed = AppPrepPoll(&g_prep, &g_scale, tNowSec, k0l);
-        if (k0l != 0)
         {
-          EmitEvent((g_prep.state == PP_COMMS) ? "PREP_ENTER" : "PREP_ABORT");
+          /* KEY4 触发后：等建基线完成（--- 消失、ready=1）再进预备标定 */
+          int calStart = 0;
+          if (g_calReq != 0U)
+          {
+            int rdy4 = 0;
+            (void)AppScaleLiveMass(&g_scale, &rdy4);
+            if (rdy4 != 0)
+            {
+              g_calReq = 0U;
+              calStart = 1;
+              Dbg_Line("# CAL start (baseline ready)");
+            }
+          }
+          committed = AppPrepPoll(&g_prep, &g_scale, tNowSec, calStart);
+          if (calStart != 0)
+          {
+            EmitEvent((g_prep.state == PP_COMMS) ? "PREP_ENTER" : "PREP_ABORT");
+          }
         }
         /* 段推进提示：空盘段→砝码段（该放砝码了）*/
         if ((g_prep.state == PP_PROMPT)
@@ -484,7 +894,23 @@ int main(void)
       }
 
       /* —— 数码管 5Hz 刷新：预备 > 清零 > 锁定读数 > 实时 —— */
-      if ((HAL_GetTick() - g_lastDispTick) >= 200U)
+      /* 低电提醒：最高显示优先级，闪 "11.4U"（U=请充电）*/
+      if ((g_lowBat != 0U) && (g_lowBatCancel == 0U))
+      {
+        if ((HAL_GetTick() - g_lastDispTick) >= 200U)
+        {
+          g_lastDispTick = HAL_GetTick();
+          if (((HAL_GetTick() / 500U) & 1U) != 0U)
+          {
+            Bat_ShowVoltage();
+          }
+          else
+          {
+            DigitTube_ShowBlackScreen();
+          }
+        }
+      }
+      else if ((HAL_GetTick() - g_lastDispTick) >= 200U)
       {
         int disp = AppPrepDisplay(&g_prep,
                                   (double)HAL_GetTick() / 1000.0);
@@ -624,6 +1050,48 @@ int main(void)
           Dbg_Line("# CODE A=--- B=---");
         }
       }
+
+      /* —— 自动休眠：连续 SLEEP_QUIET_MS 空载（±3 g）→ 2 短鸣 → STOP —— */
+#if (SLEEP_AUTO_ENABLE != 0)
+      if (g_sleepPending == 0U)
+      {
+        if (SleepConditionOk() != 0)
+        {
+          uint32_t nowQ = HAL_GetTick();
+          if (g_quietArmed == 0U)
+          {
+            g_quietArmed = 1U;
+            g_quietT0 = nowQ;
+          }
+          else if ((uint32_t)(nowQ - g_quietT0) >= SLEEP_QUIET_MS)
+          {
+            Beeper_Ok();                    /* 滴滴两下 */
+            g_sleepPending = 1U;
+            g_sleepAt = nowQ + SLEEP_BEEP_SETTLE_MS;
+            Dbg_Line("# SLEEP arm");
+          }
+        }
+        else
+        {
+          g_quietArmed = 0U;                /* 中途被触碰/放物/操作：重新计时 */
+        }
+      }
+      else if ((int32_t)(HAL_GetTick() - g_sleepAt) >= 0)
+      {
+        if (SleepConditionOk() != 0)
+        {
+          Dbg_Line("# SLEEP enter");
+          RequestSleepReset();              /* 打标记 + 软复位，不返回 */
+        }
+        else
+        {
+          g_sleepPending = 0U;              /* 提示音期间被触碰：取消本次休眠 */
+          g_quietArmed = 0U;
+        }
+      }
+#endif /* SLEEP_AUTO_ENABLE */
+
+      AppWdg_Feed();                        /* 主循环唯一常规喂狗点 */
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -649,9 +1117,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI|RCC_OSCILLATORTYPE_LSI;
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
   RCC_OscInitStruct.PLL.PLLM = 8;

@@ -30,6 +30,10 @@ void DigitTube_ShowBlackScreen(void);
 /* 显示 "---"（未就绪占位）。闪烁节奏由调用方控制，本驱动只发内容。 */
 void DigitTube_ShowDashes(void);
 
+/* 显示任意文本，例如 "11.4U" -> "$001,11.4U#"（字段最长 15 字符）。
+   用于低电提醒等非纯数字内容；模块字库是否支持字母需实测。 */
+void DigitTube_SetText(const char *text);
+
 /* —— 亮度控制（模块确认的亮度帧： "$001,00<n>%"）——
    n = 0~4，4 最亮 / 0 最暗；帧尾用 '%' 与显示帧的 '#' 区分。
    上电由 DigitTube_Init() 自动下发默认 4 档；亮度帧与显示帧之间

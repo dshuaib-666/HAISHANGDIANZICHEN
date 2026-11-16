@@ -63,7 +63,9 @@ void MX_ADC1_Init(void)
   */
   sConfig.Channel = ADC_CHANNEL_4;
   sConfig.Rank = 1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_3CYCLES;
+  /* 100k/20k 分压源阻抗 ≈16.7k，3 周期（≈1τ）采样会明显偏低；
+     480 周期（≈171τ）才够 12 位精度。CubeMX 里也要同步改成 480。 */
+  sConfig.SamplingTime = ADC_SAMPLETIME_480CYCLES;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
   {
     Error_Handler();

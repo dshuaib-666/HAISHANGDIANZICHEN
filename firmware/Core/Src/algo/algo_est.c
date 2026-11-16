@@ -246,10 +246,26 @@ static void feed_weighing(AlgoEstimator *e, const AlgoParams *p,
     e->win_o[EST_WIN_MAX - 1] = is_outlier;
   }
 
-  if (fabs(r - e->baseline) < p->rearm_n_sigma * e->baseline_sigma)
-    e->near_n++;
-  else
-    e->near_n = 0;
+  /* 回臂判据（两条取"或"，2026-11-14）：
+     ① 比值回到基线 3σ 内（原判据，静态/低噪声时有效）；
+     ② 质量回到 ±rearm_floor_g 内（新增兜底）：取走重物后传感器残留
+        0.2~5 g（蠕变/回差），而 σ 下限 4e-5 使 3σ 只有 ≈0.18 g，残留
+        永远满足不了 ① → 状态卡在称量态：零点停止更新、清零键被 9300
+        拒、显示停在残留值上；残留 >2 g 时还会被当成"新放上的小物体"
+        锁存。1 g 对 6 kg 量程是 0.017%FS，且 <min_lock_mass_g 的载荷
+        本来就不开事件，不会误吃真实载荷。 */
+  {
+    double d = fabs(r - e->baseline);
+    double m_abs = (p->k_g_per_r > 0.0) ? (d * p->k_g_per_r) : 1e9;
+    int near = 0;
+
+    if (d < p->rearm_n_sigma * e->baseline_sigma) near = 1;
+    if (m_abs < p->rearm_floor_g) near = 1;
+    if (near != 0)
+      e->near_n++;
+    else
+      e->near_n = 0;
+  }
 
   if (e->near_n >= p->rearm_min_n)
   {

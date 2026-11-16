@@ -26,10 +26,16 @@ typedef struct
 } Key_t;
 
 static Key_t s_key[KEY_N];
+static uint8_t s_waitRelease;   /* 上电/唤醒复位时按键仍按着：先等全部松开再处理 */
 
 void Keys_Init(void)
 {
   memset((void *)s_key, 0, sizeof(s_key));
+  /* 按键唤醒 → 整机复位时，唤醒的那个键往往还按着。若直接跑状态机，
+     会把它当成一次新按下，800ms 后误触发长按（清零/预备）。这里先
+     冻结按键处理，直到三键全部松开。 */
+  s_waitRelease = ((Keys_IsPressed(0U) != 0) || (Keys_IsPressed(1U) != 0)
+                   || (Keys_IsPressed(2U) != 0)) ? 1U : 0U;
 }
 
 void Keys_Process(void)
@@ -37,6 +43,16 @@ void Keys_Process(void)
   uint8_t i;
   uint32_t now = HAL_GetTick();
   Key_t *k;
+
+  if (s_waitRelease != 0U)
+  {
+    if ((Keys_IsPressed(0U) == 0) && (Keys_IsPressed(1U) == 0)
+        && (Keys_IsPressed(2U) == 0))
+    {
+      s_waitRelease = 0U;
+    }
+    return;
+  }
 
   for (i = 0U; i < KEY_N; i++)
   {

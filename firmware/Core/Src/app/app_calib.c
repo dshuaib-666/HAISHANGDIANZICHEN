@@ -3,6 +3,10 @@
 #include <string.h>
 #include <stddef.h>
 
+/* 主循环里的 IWDG 喂狗钩子（main.c 实现）：擦 Sector 11 最长约 4 s，
+   IWDG 最坏 5.58 s，擦除前补喂一次把余量拉大。 */
+extern void AppWdg_Feed(void);
+
 /* ==== 标定流程实现：见 app_calib.h 头注 ==== */
 
 /* —— CRC32（IEEE 802.3 反射式，逐位软件实现——记录仅 52B，无需硬件 CRC）—— */
@@ -37,6 +41,7 @@ static int flash_save(const AppCalibRec *rec)
   g_calib_flash_rc = 0U;
   if ((sizeof(AppCalibRec) % 8U) != 0U) return 0;
 
+  AppWdg_Feed();                              /* 擦除前的看门狗补喂 */
   st = HAL_FLASH_Unlock();
   if (st != HAL_OK)
   {

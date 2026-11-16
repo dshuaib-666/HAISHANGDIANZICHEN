@@ -98,12 +98,12 @@ static double empty_live_median(AppPrep *pp)
   return (n % 2) ? v[n / 2] : 0.5 * (v[n / 2 - 1] + v[n / 2]);
 }
 
-int AppPrepPoll(AppPrep *pp, AppScale *app, double t_now, int ev_key0_long)
+int AppPrepPoll(AppPrep *pp, AppScale *app, double t_now, int ev_cal)
 {
   double el = t_now - pp->t_state;
   int committed = 0;
 
-  if (ev_key0_long)
+  if (ev_cal)
   {
     if (pp->state == PP_IDLE)
     {

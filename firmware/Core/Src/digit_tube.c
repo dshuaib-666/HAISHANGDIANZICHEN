@@ -276,6 +276,11 @@ void DigitTube_ShowDashes(void)
   DigitTube_SetPayload("---");
 }
 
+void DigitTube_SetText(const char *text)
+{
+  DigitTube_SetPayload(text);
+}
+
 void DigitTube_SetBrightness(uint8_t level)
 {
   if (level > DIGIT_TUBE_BRIGHT_MAX)
